@@ -1,0 +1,163 @@
+# Import biblioteki PANDAS 
+import pandas as pd
+# Import biblioteki WARNINGS
+# Umożliwia ona zarządzaniem ostrzeżeniami w Python
+import warnings
+warnings.filterwarnings('ignore')
+
+# Wczytanie danych
+data_cardio = pd.read_csv('/Users/konrad/Desktop/Data_mining/cardio_train.csv', sep=';')
+
+data_cardio['age'] = (data_cardio['age'] / 365).astype(int)
+
+# Wydruk informacji o zbiorze
+print(data_cardio.info())
+
+data_cardio.head()
+
+# Wyświetlenie częstości wystąpień dla zmiennej 'cardio'
+cardio_counts = data_cardio['cardio'].value_counts()
+print(cardio_counts)
+
+print(data_cardio['age'].unique())
+
+print(data_cardio['height'].unique())
+
+# PODZIAŁ ZBIORU
+# Import biblioteki do podziału zbioru
+from sklearn.model_selection import train_test_split
+
+# Podział zbioru data_cardio na zbiór uczący i testowy
+X = data_cardio.drop('cardio', axis=1) #usuwamy zmienna cardio
+y = data_cardio['cardio'] #dodajemy zmienną cardio
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=1)
+
+# TRANSFORMACJA ZMIENNYCH
+# Import bibliotek
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.model_selection import train_test_split
+
+# Przekształcanie zmiennych ciągłych
+num_transformer = StandardScaler()
+
+# Transformacja zmiennych jakościowych i ciągłych
+# Standaryzacja zmiennych ciągłych: num_transformer = StandardScaler()
+transform_var = ColumnTransformer(
+    transformers=[
+        ('num', num_transformer, ['id','age','gender','height','weight','ap_hi','ap_lo','cholesterol','gluc','smoke','alco','active'])
+    ])  
+
+# Instalacja biblioteki TensorFlow - konstrukcja modeli uczenia maszynowego
+!pip install tensorflow
+
+# Transformacja zmiennych ze zbioru uczącego i zbioru testowego. #Standaryzacja zbioru test i uczacego
+X_train_transformed = transform_var.fit_transform(X_train)
+X_test_transformed = transform_var.transform(X_test)
+
+# Import bibliotek
+import numpy as np
+import random as rn
+
+# Import bibliotek do implementacj SSN
+from keras.models import Sequential
+from keras.layers import Dense
+
+# Ustawienie ziarna w celu powtarzalności wyników
+# 42, to częsta wartośc domyślna
+import numpy as np
+import tensorflow as tf
+import random as rn
+
+# Ustawienie ziarna
+np.random.seed(42)
+rn.seed(42)
+tf.random.set_seed(42)
+
+# Przygotowanie modelu sztucznej sieci neuronowej
+# Utworzenie obiektu modelu za pomocą klasy Sequential.
+siec1 = Sequential()
+siec1.add(Dense(3, input_dim=X_train_transformed.shape[1], activation='relu'))
+siec1.add(Dense(1, activation='sigmoid'))
+siec1.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+
+# Uczenie modelu
+siec1.fit(X_train_transformed, y_train, epochs=50, batch_size=10)
+
+# Dokładność predykcji na danych uczących
+accuracy_train = siec1.evaluate(X_train_transformed, y_train)
+print('Dokładność: %.2f' % (accuracy_train[1]*100))
+
+# Dokładność predykcji na danych testowych
+accuracy_test = siec1.evaluate(X_test_transformed, y_test)
+print('Dokładność: %.2f' % (accuracy_test[1]*100))
+
+# Predykcje na danych uczących
+predictions_train = siec1.predict(X_train_transformed)
+
+# Wyświetlenie 10 pierwszych wyników predykcji i prawdziwych wartości z y_train
+# iloc to "index location"
+for i in range(10):
+    print("Predykcja:", predictions_train[i], " - Prawdziwa wartość:", y_train.iloc[i])
+
+# Ocena jakości predykcji
+# Importowanie modułu
+from sklearn.metrics import confusion_matrix, classification_report, roc_curve, auc, f1_score
+
+# Wyznaczenie macierzy pomyłek na zbiorze uczącycm
+# punkt odcięcia 0.5
+y_pred_s1 = siec1.predict(X_test_transformed)
+y_pred_class_s1 = (y_pred_s1 > 0.5).astype(int)
+
+conf_matrix = confusion_matrix(y_test, y_pred_class_s1)
+print(conf_matrix)
+
+# Wygenerowanie macierzy pomyłek z etykietami
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+conf_matrix = confusion_matrix(y_test, y_pred_class_s1, labels=[0, 1])
+
+# Definicja etykiet klas
+class_labels = ['Negative (0)', 'Positive (1)']
+
+# Wyświetlenie macierzy pomyłek z opisami
+plt.figure(figsize=(8, 6))
+sns.heatmap(conf_matrix, annot=True, fmt='d', cmap='Blues', xticklabels=class_labels, yticklabels=class_labels)
+plt.xlabel('Predicted')
+plt.ylabel('True')
+plt.title('Confusion Matrix')
+plt.show()
+
+# Obliczenie wartości F1
+# F1=2x(precyzja*czułość/precyzja+czułość)
+f1 = f1_score(y_test, y_pred_class_s1)
+print("Wartość F1:", f1)
+
+# Wyznaczanie pola pod krzywą ROC na zbiorze testowym
+
+fpr, tpr, thresholds = roc_curve(y_test, y_pred_s1 )
+roc_auc = auc(fpr, tpr)
+print("ROC AUC:", roc_auc)
+#bylo przy epoce 50 0.795 AUC
+
+# Wyznaczanie krzywej ROC
+
+import matplotlib.pyplot as plt
+
+fpr, tpr, thresholds = roc_curve(y_test, y_pred_s1)
+roc_auc = auc(fpr, tpr)
+
+plt.plot(fpr, tpr, color='darkorange', lw=2, label='ROC curve (area = %0.2f)' % roc_auc)
+plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.05])
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('Receiver Operating Characteristic (ROC)')
+plt.legend(loc="lower right")
+plt.show()
+
+
+
+
